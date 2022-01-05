@@ -42,7 +42,7 @@ def delta():
             if tup["predicate"]["value"] == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type" and tup["object"]["value"] == "http://www.ontologydesignpatterns.org/ont/dul/IOLite.owl#Sentence":
                 sentence_uris.append(tup["subject"]["value"])
             if tup["predicate"]["value"] == "http://www.w3.org/1999/02/22-rdf-syntax-ns#value":
-                values[tup["subject"]["value"]] = tup["object"]["value"]
+                values[tup["subject"]["value"]] = tup["object"]["value"].encode().decode('unicode-escape')
 
     # TODO: Here, we could check if a URI has a value/type in the database that's not in the delta
     # TODO: Check if we have already processed this sentence
@@ -88,7 +88,7 @@ olia_type = {
     "POS": OLIA.PossessionMarker, # TODO: Not sure if this is right...
     "RBS": OLIA.Adverb, # superlative
     "RBR": OLIA.Adverb, # comparative
-    "RB": OLIA.Adverb, 
+    "RB": OLIA.Adverb,
     "JJS": OLIA.Adjective, # superlative
     "JJR": OLIA.Adjective, # comparative
     "JJ": OLIA.Adjective,
@@ -111,13 +111,15 @@ olia_type = {
     "SYM": OLIA.Symbol,
     "$": OLIA.Symbol, # specifically for currency
     "\"": OLIA.Quote,
+    "''": OLIA.Quote,
     "(": OLIA.OpenBracket,
     ")": OLIA.CloseBracket,
     ",": OLIA.Comma,
     ".": OLIA.SentenceFinalPunctuation,
     ":": OLIA.SentenceMedialPunctuation,
-    
+
     # TODO: find an exhaustive list of these abbreviations
+    # http://surdeanu.cs.arizona.edu//mihai/teaching/ista555-fall13/readings/PennTreebankConstituents.html
     "S": OLIA.Sentence,
     "NP": OLIA.NounPhrase,
     "VP": OLIA.VerbPhrase,
@@ -126,11 +128,21 @@ olia_type = {
     "SBAR": OLIA.Sentence,
     "ADJP": OLIA.AdjectivePhrase,
     "NML": OLIA.NounPhrase,
+    "WHNP": OLIA.WHNounPhrase,
+    "WHADVP": OLIA.WHAdverbPhrase,
+    "WHADJP": OLIA.WHAdjectivePhrase,
+    "WHPP": OLIA.WHPrepositionalPhrase,
+    "SQ": OLIA.Question,
+    "SBARQ": OLIA.Question,
+    "INTJ": OLIA.Interjection,
+    "FRAG": OLIA.Fragment,
 }
 
 def insert_olia_type(uri, label, graph):
+    # Remove suffixes like -TMP
+    label_base = label.split("-")[0]
     try:
-        graph.add((uri, NIF.posTag, olia_type[label]))
+        graph.add((uri, NIF.posTag, olia_type[label_base]))
     except KeyError as e:
         raise Exception(f"No OLiA tag for label '{label}'.") from e
 
@@ -152,12 +164,12 @@ def process_constituency_tree(node, text, graph, node_uri=None):
             while text[curr_i].isspace():
                 curr_i += 1
             result = process_constituency_tree(child, text[curr_i:], graph)
-            
+
             graph.add((result.uri, NIF.beginIndex,  Literal(curr_i)))
             graph.add((result.uri, NIF.endIndex,    Literal(curr_i + result.match_len - 1)))
             graph.add((node_uri,   NIF.subString,   result.uri))
             graph.add((result.uri, NIF.superString, node_uri))
-            
+
             curr_i += result.match_len
         value = text[:curr_i]
 
